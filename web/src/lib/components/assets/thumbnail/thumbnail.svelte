@@ -34,6 +34,7 @@
     thumbnailSize?: number;
     thumbnailWidth?: number;
     thumbnailHeight?: number;
+    isInViewport?: boolean;
     selected?: boolean;
     selectionCandidate?: boolean;
     disabled?: boolean;
@@ -57,6 +58,7 @@
     thumbnailSize = undefined,
     thumbnailWidth = undefined,
     thumbnailHeight = undefined,
+    isInViewport = true,
     selected = false,
     selectionCandidate = false,
     disabled = false,
@@ -79,6 +81,7 @@
   let mouseOver = $state(false);
   let loaded = $state(false);
   let thumbError = $state(false);
+  let skipFade = $state(false);
 
   let width = $derived(thumbnailSize || thumbnailWidth || 235);
   let height = $derived(thumbnailSize || thumbnailHeight || 235);
@@ -265,7 +268,11 @@
         widthStyle="{width}px"
         heightStyle="{height}px"
         curve={selected}
-        onComplete={(errored) => ((loaded = true), (thumbError = errored))}
+        onComplete={(errored) => {
+          skipFade = !isInViewport;
+          loaded = true;
+          thumbError = errored;
+        }}
       />
       {#if asset.isVideo}
         <div class="absolute h-full w-full pointer-events-none group-focus-visible:rounded-lg">
@@ -310,7 +317,10 @@
         <Thumbhash
           base64ThumbHash={asset.thumbhash}
           data-testid="thumbhash"
-          class={['absolute top-0 object-cover group-focus-visible:rounded-lg', { 'rounded-xl': selected }]}
+          class={[
+            'absolute top-0 object-cover group-focus-visible:rounded-lg',
+            { 'rounded-xl': selected, hidden: skipFade },
+          ]}
           style="width: {width}px; height: {height}px"
           draggable="false"
           fadeOut
