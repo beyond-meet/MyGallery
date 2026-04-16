@@ -14,11 +14,21 @@ class LoginCredentialDto {
   /// Returns a new [LoginCredentialDto] instance.
   LoginCredentialDto({
     required this.email,
+    this.linkToken,
     required this.password,
   });
 
   /// User email
   String email;
+
+  /// OAuth link token to consume on successful login
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? linkToken;
 
   /// User password
   String password;
@@ -26,20 +36,27 @@ class LoginCredentialDto {
   @override
   bool operator ==(Object other) => identical(this, other) || other is LoginCredentialDto &&
     other.email == email &&
+    other.linkToken == linkToken &&
     other.password == password;
 
   @override
   int get hashCode =>
     // ignore: unnecessary_parenthesis
     (email.hashCode) +
+    (linkToken == null ? 0 : linkToken!.hashCode) +
     (password.hashCode);
 
   @override
-  String toString() => 'LoginCredentialDto[email=$email, password=$password]';
+  String toString() => 'LoginCredentialDto[email=$email, linkToken=$linkToken, password=$password]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
       json[r'email'] = this.email;
+    if (this.linkToken != null) {
+      json[r'linkToken'] = this.linkToken;
+    } else {
+    //  json[r'linkToken'] = null;
+    }
       json[r'password'] = this.password;
     return json;
   }
@@ -54,6 +71,7 @@ class LoginCredentialDto {
 
       return LoginCredentialDto(
         email: mapValueOfType<String>(json, r'email')!,
+        linkToken: mapValueOfType<String>(json, r'linkToken'),
         password: mapValueOfType<String>(json, r'password')!,
       );
     }

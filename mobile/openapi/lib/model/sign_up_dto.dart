@@ -14,12 +14,22 @@ class SignUpDto {
   /// Returns a new [SignUpDto] instance.
   SignUpDto({
     required this.email,
+    this.linkToken,
     required this.name,
     required this.password,
   });
 
   /// User email
   String email;
+
+  /// OAuth link token to consume on successful login
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? linkToken;
 
   /// User name
   String name;
@@ -30,6 +40,7 @@ class SignUpDto {
   @override
   bool operator ==(Object other) => identical(this, other) || other is SignUpDto &&
     other.email == email &&
+    other.linkToken == linkToken &&
     other.name == name &&
     other.password == password;
 
@@ -37,15 +48,21 @@ class SignUpDto {
   int get hashCode =>
     // ignore: unnecessary_parenthesis
     (email.hashCode) +
+    (linkToken == null ? 0 : linkToken!.hashCode) +
     (name.hashCode) +
     (password.hashCode);
 
   @override
-  String toString() => 'SignUpDto[email=$email, name=$name, password=$password]';
+  String toString() => 'SignUpDto[email=$email, linkToken=$linkToken, name=$name, password=$password]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
       json[r'email'] = this.email;
+    if (this.linkToken != null) {
+      json[r'linkToken'] = this.linkToken;
+    } else {
+    //  json[r'linkToken'] = null;
+    }
       json[r'name'] = this.name;
       json[r'password'] = this.password;
     return json;
@@ -61,6 +78,7 @@ class SignUpDto {
 
       return SignUpDto(
         email: mapValueOfType<String>(json, r'email')!,
+        linkToken: mapValueOfType<String>(json, r'linkToken'),
         name: mapValueOfType<String>(json, r'name')!,
         password: mapValueOfType<String>(json, r'password')!,
       );
