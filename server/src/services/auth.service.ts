@@ -14,7 +14,6 @@ import {
   LogoutResponseDto,
   OAuthCallbackDto,
   OAuthConfigDto,
-  OAuthLinkDto,
   PinCodeChangeDto,
   PinCodeResetDto,
   PinCodeSetupDto,
@@ -75,6 +74,21 @@ export class AuthService extends BaseService {
     if (!user) {
       this.logger.warn(`Failed login attempt for user ${dto.email} from ip address ${details.clientIp}`);
       throw new UnauthorizedException('Incorrect email or password');
+    }
+
+    if (dto.linkToken) {
+      const hashedToken = this.cryptoRepository.hashSha256(dto.linkToken);
+      const record = await this.oauthLinkTokenRepository.consumeToken(hashedToken);
+      if (!record) {
+        throw new BadRequestException('Invalid or expired link token');
+      }
+
+      const duplicate = await this.userRepository.getByOAuthId(record.oauthSub);
+      if (duplicate && duplicate.id !== user.id) {
+        throw new BadRequestException('This OAuth account has already been linked to another user.');
+      }
+
+      await this.userRepository.update(user.id, { oauthId: record.oauthSub });
     }
 
     return this.createLoginResponse(user, details);
@@ -293,9 +307,9 @@ export class AuthService extends BaseService {
           token: hashedToken,
           oauthSub: profile.sub,
           userEmail: emailUser.email,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          expiresAt: DateTime.now().plus({ minutes: 10 }).toJSDate(),
         });
-        throw new BadRequestException({
+        throw new ForbiddenException({
           message: 'oauth_account_link_required',
           userEmail: emailUser.email,
           linkToken: plainToken,
@@ -376,45 +390,6 @@ export class AuthService extends BaseService {
     } catch (error: Error | any) {
       this.logger.warn(`Unable to sync oauth profile picture: ${error}\n${error?.stack}`);
     }
-  }
-
-  async link(auth: AuthDto, dto: OAuthLinkDto, headers: IncomingHttpHeaders): Promise<UserAdminResponseDto> {
-    let oauthId: string;
-
-    if (dto.linkToken) {
-      const hashedToken = this.cryptoRepository.hashSha256(dto.linkToken);
-      const record = await this.oauthLinkTokenRepository.consumeToken(hashedToken);
-      if (!record) {
-        throw new BadRequestException('Invalid or expired link token');
-      }
-      if (record.userEmail !== auth.user.email) {
-        throw new BadRequestException('Link token does not match the authenticated user');
-      }
-      oauthId = record.oauthSub;
-    } else {
-      const expectedState = dto.state ?? this.getCookieOauthState(headers);
-      if (!expectedState?.length) {
-        throw new BadRequestException('OAuth state is missing');
-      }
-
-      const codeVerifier = dto.codeVerifier ?? this.getCookieCodeVerifier(headers);
-      if (!codeVerifier?.length) {
-        throw new BadRequestException('OAuth code verifier is missing');
-      }
-
-      const { oauth } = await this.getConfig({ withCache: false });
-      const { sub } = await this.oauthRepository.getProfile(oauth, dto.url!, expectedState, codeVerifier);
-      oauthId = sub;
-    }
-
-    const duplicate = await this.userRepository.getByOAuthId(oauthId);
-    if (duplicate && duplicate.id !== auth.user.id) {
-      this.logger.warn(`OAuth link account failed: sub is already linked to another user (${duplicate.email}).`);
-      throw new BadRequestException('This OAuth account has already been linked to another user.');
-    }
-
-    const user = await this.userRepository.update(auth.user.id, { oauthId });
-    return mapUserAdmin(user);
   }
 
   async unlink(auth: AuthDto): Promise<UserAdminResponseDto> {

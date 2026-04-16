@@ -88,6 +88,37 @@ describe(AuthService.name, () => {
 
       expect(mocks.user.getByEmail).toHaveBeenCalledTimes(1);
     });
+
+    it('should link an OAuth account when linkToken is provided', async () => {
+      const user = UserFactory.create({ password: 'immich_password' });
+      const session = SessionFactory.create();
+      mocks.user.getByEmail.mockResolvedValue(user);
+      mocks.session.create.mockResolvedValue(session);
+      mocks.oauthLinkToken.consumeToken.mockResolvedValue({
+        id: 'token-id',
+        oauthSub: 'oauth-sub-123',
+        userEmail: user.email,
+        token: Buffer.from('hashed'),
+        expiresAt: new Date(Date.now() + 600_000),
+        createdAt: new Date(),
+      });
+      mocks.user.update.mockResolvedValue(user);
+
+      await sut.login({ email, password: 'password', linkToken: 'plain-token' }, loginDetails);
+
+      expect(mocks.oauthLinkToken.consumeToken).toHaveBeenCalledTimes(1);
+      expect(mocks.user.update).toHaveBeenCalledWith(user.id, { oauthId: 'oauth-sub-123' });
+    });
+
+    it('should reject login with invalid linkToken', async () => {
+      const user = UserFactory.create({ password: 'immich_password' });
+      mocks.user.getByEmail.mockResolvedValue(user);
+      mocks.oauthLinkToken.consumeToken.mockResolvedValue(null as any);
+
+      await expect(sut.login({ email, password: 'password', linkToken: 'bad-token' }, loginDetails)).rejects.toThrow(
+        'Invalid or expired link token',
+      );
+    });
   });
 
   describe('changePassword', () => {
@@ -630,7 +661,7 @@ describe(AuthService.name, () => {
           {},
           loginDetails,
         ),
-      ).rejects.toThrow('oauth_account_link_required');
+      ).rejects.toThrow(ForbiddenException);
 
       expect(mocks.user.getByEmail).toHaveBeenCalledTimes(1);
       expect(mocks.user.update).not.toHaveBeenCalled();
@@ -674,7 +705,7 @@ describe(AuthService.name, () => {
           {},
           loginDetails,
         ),
-      ).rejects.toThrow('oauth_account_link_required');
+      ).rejects.toThrow(ForbiddenException);
 
       expect(mocks.user.update).not.toHaveBeenCalled();
       expect(mocks.user.create).not.toHaveBeenCalled();
@@ -970,93 +1001,6 @@ describe(AuthService.name, () => {
       );
 
       expect(mocks.user.create).toHaveBeenCalledWith(expect.objectContaining({ isAdmin: true }));
-    });
-  });
-
-  describe('link', () => {
-    it('should link an account', async () => {
-      const user = UserFactory.create();
-      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
-      const profile = OAuthProfileFactory.create();
-
-      mocks.systemMetadata.get.mockResolvedValue(systemConfigStub.enabled);
-      mocks.oauth.getProfile.mockResolvedValue(profile);
-      mocks.user.update.mockResolvedValue(user);
-
-      await sut.link(
-        auth,
-        { url: 'http://immich/user-settings?code=abc123', state: 'xyz789', codeVerifier: 'foo' },
-        {},
-      );
-
-      expect(mocks.user.update).toHaveBeenCalledWith(auth.user.id, { oauthId: profile.sub });
-    });
-
-    it('should link an account with a linkToken', async () => {
-      const user = UserFactory.create();
-      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
-
-      mocks.oauthLinkToken.consumeToken.mockResolvedValue({
-        id: 'token-id',
-        oauthSub: 'oauth-sub-123',
-        userEmail: user.email,
-        token: Buffer.from('hashed'),
-        expiresAt: new Date(Date.now() + 600_000),
-        createdAt: new Date(),
-      });
-      mocks.user.update.mockResolvedValue(user);
-
-      await sut.link(auth, { linkToken: 'plain-token' }, {});
-
-      expect(mocks.oauthLinkToken.consumeToken).toHaveBeenCalledTimes(1);
-      expect(mocks.user.update).toHaveBeenCalledWith(auth.user.id, { oauthId: 'oauth-sub-123' });
-    });
-
-    it('should reject an invalid linkToken', async () => {
-      const user = UserFactory.create();
-      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
-
-      mocks.oauthLinkToken.consumeToken.mockResolvedValue(null as any);
-
-      await expect(sut.link(auth, { linkToken: 'bad-token' }, {})).rejects.toThrow('Invalid or expired link token');
-
-      expect(mocks.user.update).not.toHaveBeenCalled();
-    });
-
-    it('should reject a linkToken for a different user', async () => {
-      const user = UserFactory.create();
-      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
-
-      mocks.oauthLinkToken.consumeToken.mockResolvedValue({
-        id: 'token-id',
-        oauthSub: 'oauth-sub-123',
-        userEmail: 'different@example.com',
-        token: Buffer.from('hashed'),
-        expiresAt: new Date(Date.now() + 600_000),
-        createdAt: new Date(),
-      });
-
-      await expect(sut.link(auth, { linkToken: 'plain-token' }, {})).rejects.toThrow(
-        'Link token does not match the authenticated user',
-      );
-
-      expect(mocks.user.update).not.toHaveBeenCalled();
-    });
-
-    it('should not link an already linked oauth.sub', async () => {
-      const authUser = UserFactory.create();
-      const authApiKey = ApiKeyFactory.create({ permissions: [] });
-      const auth = { user: authUser, apiKey: authApiKey };
-
-      mocks.systemMetadata.get.mockResolvedValue(systemConfigStub.enabled);
-      mocks.oauth.getProfile.mockResolvedValue(OAuthProfileFactory.create());
-      mocks.user.getByOAuthId.mockResolvedValue({ id: 'other-user' } as UserAdmin);
-
-      await expect(
-        sut.link(auth, { url: 'http://immich/user-settings?code=abc123', state: 'xyz789', codeVerifier: 'foo' }, {}),
-      ).rejects.toBeInstanceOf(BadRequestException);
-
-      expect(mocks.user.update).not.toHaveBeenCalled();
     });
   });
 
