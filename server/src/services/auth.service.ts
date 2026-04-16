@@ -392,6 +392,29 @@ export class AuthService extends BaseService {
     }
   }
 
+  async link(auth: AuthDto, dto: OAuthCallbackDto, headers: IncomingHttpHeaders): Promise<UserAdminResponseDto> {
+    const expectedState = dto.state ?? this.getCookieOauthState(headers);
+    if (!expectedState?.length) {
+      throw new BadRequestException('OAuth state is missing');
+    }
+
+    const codeVerifier = dto.codeVerifier ?? this.getCookieCodeVerifier(headers);
+    if (!codeVerifier?.length) {
+      throw new BadRequestException('OAuth code verifier is missing');
+    }
+
+    const { oauth } = await this.getConfig({ withCache: false });
+    const { sub: oauthId } = await this.oauthRepository.getProfile(oauth, dto.url, expectedState, codeVerifier);
+    const duplicate = await this.userRepository.getByOAuthId(oauthId);
+    if (duplicate && duplicate.id !== auth.user.id) {
+      this.logger.warn(`OAuth link account failed: sub is already linked to another user (${duplicate.email}).`);
+      throw new BadRequestException('This OAuth account has already been linked to another user.');
+    }
+
+    const user = await this.userRepository.update(auth.user.id, { oauthId });
+    return mapUserAdmin(user);
+  }
+
   async unlink(auth: AuthDto): Promise<UserAdminResponseDto> {
     const user = await this.userRepository.update(auth.user.id, { oauthId: '' });
     return mapUserAdmin(user);

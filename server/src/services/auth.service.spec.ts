@@ -1006,6 +1006,42 @@ describe(AuthService.name, () => {
     });
   });
 
+  describe('link', () => {
+    it('should link an account', async () => {
+      const user = UserFactory.create();
+      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
+      const profile = OAuthProfileFactory.create();
+
+      mocks.systemMetadata.get.mockResolvedValue(systemConfigStub.enabled);
+      mocks.oauth.getProfile.mockResolvedValue(profile);
+      mocks.user.update.mockResolvedValue(user);
+
+      await sut.link(
+        auth,
+        { url: 'http://immich/user-settings?code=abc123', state: 'xyz789', codeVerifier: 'foo' },
+        {},
+      );
+
+      expect(mocks.user.update).toHaveBeenCalledWith(auth.user.id, { oauthId: profile.sub });
+    });
+
+    it('should not link an already linked oauth.sub', async () => {
+      const authUser = UserFactory.create();
+      const authApiKey = ApiKeyFactory.create({ permissions: [] });
+      const auth = { user: authUser, apiKey: authApiKey };
+
+      mocks.systemMetadata.get.mockResolvedValue(systemConfigStub.enabled);
+      mocks.oauth.getProfile.mockResolvedValue(OAuthProfileFactory.create());
+      mocks.user.getByOAuthId.mockResolvedValue({ id: 'other-user' } as UserAdmin);
+
+      await expect(
+        sut.link(auth, { url: 'http://immich/user-settings?code=abc123', state: 'xyz789', codeVerifier: 'foo' }, {}),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mocks.user.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('unlink', () => {
     it('should unlink an account', async () => {
       const user = UserFactory.create();
