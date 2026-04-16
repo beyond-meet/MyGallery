@@ -8,6 +8,7 @@
   import AssetViewerEvents from '$lib/components/AssetViewerEvents.svelte';
   import { assetViewerManager } from '$lib/managers/asset-viewer-manager.svelte';
   import { castManager } from '$lib/managers/cast-manager.svelte';
+  import { faceManager } from '$lib/stores/face.svelte';
   import { ocrManager } from '$lib/stores/ocr.svelte';
   import { boundingBoxesArray, type Faces } from '$lib/stores/people.store';
   import { SlideshowLook, SlideshowState, slideshowStore } from '$lib/stores/slideshow.store';
@@ -156,19 +157,6 @@
 
   let adaptiveImage = $state<HTMLDivElement | undefined>();
 
-  const faceToNameMap = $derived.by(() => {
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const map = new Map<Faces, string>();
-    for (const person of asset.people ?? []) {
-      for (const face of person.faces ?? []) {
-        map.set(face, person.name);
-      }
-    }
-    return map;
-  });
-
-  const faces = $derived(Array.from(faceToNameMap.keys()));
-
   const handleImageMouseMove = (event: MouseEvent) => {
     $boundingBoxesArray = [];
     if (!assetViewerManager.imgRef || !element || assetViewerManager.isFaceEditMode || ocrManager.showOverlay) {
@@ -186,11 +174,11 @@
     const mouseX = (event.clientX - containerRect.left - contentOffsetX * currentZoom - currentPositionX) / currentZoom;
     const mouseY = (event.clientY - containerRect.top - contentOffsetY * currentZoom - currentPositionY) / currentZoom;
 
-    const faceBoxes = getBoundingBox(faces, overlaySize);
+    const faceBoxes = getBoundingBox(faceManager.data, overlaySize);
 
     for (const [index, box] of faceBoxes.entries()) {
       if (mouseX >= box.left && mouseX <= box.left + box.width && mouseY >= box.top && mouseY <= box.top + box.height) {
-        $boundingBoxesArray.push(faces[index]);
+        $boundingBoxesArray.push(faceManager.data[index]);
       }
     }
   };
@@ -265,17 +253,18 @@
           <rect width="100%" height="100%" fill="rgba(0,0,0,0.4)" mask="url(#face-dim-mask)" />
         </svg>
         {#each visibleBoxes as boundingbox, index (boundingbox.id)}
+          {@const name = faceManager.faceNameMap.get(visibleBoundingBoxes[index])}
           <div
             class="absolute border-solid border-white border-3 rounded-lg"
             style="top: {boundingbox.top}px; left: {boundingbox.left}px; height: {boundingbox.height}px; width: {boundingbox.width}px;"
           ></div>
-          {#if faceToNameMap.get(visibleBoundingBoxes[index])}
+          {#if name}
             <div
               class="absolute bg-white/90 text-black px-2 py-1 rounded text-sm font-medium whitespace-nowrap pointer-events-none shadow-lg"
               style="top: {boundingbox.top + boundingbox.height + 4}px; left: {boundingbox.left +
                 boundingbox.width}px; transform: translateX(-100%);"
             >
-              {faceToNameMap.get(visibleBoundingBoxes[index])}
+              {name}
             </div>
           {/if}
         {/each}

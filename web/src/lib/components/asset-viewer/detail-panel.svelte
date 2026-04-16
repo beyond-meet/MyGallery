@@ -10,6 +10,7 @@
   import { featureFlagsManager } from '$lib/managers/feature-flags-manager.svelte';
   import AssetChangeDateModal from '$lib/modals/AssetChangeDateModal.svelte';
   import { Route } from '$lib/route';
+  import { faceManager } from '$lib/stores/face.svelte';
   import { boundingBoxesArray } from '$lib/stores/people.store';
   import { locale } from '$lib/stores/preferences.store';
   import { getAssetMediaUrl, getPeopleThumbnailUrl } from '$lib/utils';
@@ -56,8 +57,7 @@
 
   let showEditFaces = $state(false);
   let isOwner = $derived(authManager.authenticated && authManager.user.id === asset.ownerId);
-  let people = $derived(asset.people || []);
-  let unassignedFaces = $derived(asset.unassignedFaces || []);
+  let people = $derived(faceManager.people || []);
   let showingHiddenPeople = $state(false);
   let timeZone = $derived(asset.exifInfo?.timeZone ?? undefined);
   let dateTime = $derived(
@@ -185,7 +185,7 @@
       <div class="flex h-10 w-full items-center justify-between">
         <Text size="small" color="muted">{$t('people')}</Text>
         <div class="flex gap-2 items-center">
-          {#if people.some((person) => person.isHidden)}
+          {#if Array.from(people).some((person) => person.isHidden)}
             <IconButton
               aria-label={$t('show_hidden_people')}
               icon={showingHiddenPeople ? mdiEyeOff : mdiEye}
@@ -206,7 +206,7 @@
             onclick={() => assetViewerManager.toggleFaceEditMode()}
           />
 
-          {#if people.length > 0 || unassignedFaces.length > 0}
+          {#if faceManager.data.length > 0}
             <IconButton
               aria-label={$t('edit_people')}
               icon={mdiPencil}
@@ -221,15 +221,16 @@
       </div>
 
       <div class="mt-2 flex flex-wrap gap-2">
-        {#each people as person, index (person.id)}
+        {#each people as person (person.id)}
           {#if showingHiddenPeople || !person.isHidden}
-            {@const isHighlighted = people[index].faces.some((f) => $boundingBoxesArray.some((b) => b.id === f.id))}
+            {@const isHighlighted = $boundingBoxesArray.some((b) => b.id === person.id)}
+            {@const faces = faceManager.data.filter((face) => face.person?.id === person.id)}
             <a
               class="group w-22 outline-none"
               href={Route.viewPerson(person, { previousRoute })}
-              onfocus={() => ($boundingBoxesArray = people[index].faces)}
+              onfocus={() => ($boundingBoxesArray = faces)}
               onblur={() => ($boundingBoxesArray = [])}
-              onmouseover={() => ($boundingBoxesArray = people[index].faces)}
+              onmouseover={() => ($boundingBoxesArray = faces)}
               onmouseleave={() => ($boundingBoxesArray = [])}
             >
               <div class="relative">
