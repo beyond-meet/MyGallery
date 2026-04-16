@@ -90,7 +90,8 @@ export class OAuthController {
   @HttpCode(HttpStatus.OK)
   @Endpoint({
     summary: 'Link OAuth account',
-    description: 'Link an OAuth account to the authenticated user. Use the linkToken parameter on the login endpoint instead.',
+    description:
+      'Link an OAuth account to the authenticated user. Use the linkToken parameter on the login endpoint instead.',
     history: new HistoryBuilder().added('v1').beta('v1').stable('v2').deprecated('v2.8.0'),
   })
   linkOAuthAccount(
