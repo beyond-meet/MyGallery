@@ -121,6 +121,62 @@ class DeprecatedApi {
     return null;
   }
 
+  /// Link OAuth account
+  ///
+  /// Link an OAuth account to the authenticated user. Use the linkToken parameter on the login endpoint instead.
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [OAuthCallbackDto] oAuthCallbackDto (required):
+  Future<Response> linkOAuthAccountWithHttpInfo(OAuthCallbackDto oAuthCallbackDto,) async {
+    // ignore: prefer_const_declarations
+    final apiPath = r'/oauth/link';
+
+    // ignore: prefer_final_locals
+    Object? postBody = oAuthCallbackDto;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      apiPath,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Link OAuth account
+  ///
+  /// Link an OAuth account to the authenticated user. Use the linkToken parameter on the login endpoint instead.
+  ///
+  /// Parameters:
+  ///
+  /// * [OAuthCallbackDto] oAuthCallbackDto (required):
+  Future<UserAdminResponseDto?> linkOAuthAccount(OAuthCallbackDto oAuthCallbackDto,) async {
+    final response = await linkOAuthAccountWithHttpInfo(oAuthCallbackDto,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'UserAdminResponseDto',) as UserAdminResponseDto;
+    
+    }
+    return null;
+  }
+
   /// Run jobs
   ///
   /// Queue all assets for a specific job type. Defaults to only queueing assets that have not yet been processed, but the force command can be used to re-process all assets.

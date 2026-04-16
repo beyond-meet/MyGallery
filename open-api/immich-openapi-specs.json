@@ -7409,7 +7409,8 @@
     },
     "/oauth/link": {
       "post": {
-        "description": "Link an OAuth account to the authenticated user.",
+        "deprecated": true,
+        "description": "Link an OAuth account to the authenticated user. Use the linkToken parameter on the login endpoint instead.",
         "operationId": "linkOAuthAccount",
         "parameters": [],
         "requestBody": {
@@ -7447,7 +7448,8 @@
         ],
         "summary": "Link OAuth account",
         "tags": [
-          "Authentication"
+          "Authentication",
+          "Deprecated"
         ],
         "x-immich-history": [
           {
@@ -7461,9 +7463,13 @@
           {
             "version": "v2",
             "state": "Stable"
+          },
+          {
+            "version": "v2.8.0",
+            "state": "Deprecated"
           }
         ],
-        "x-immich-state": "Stable"
+        "x-immich-state": "Deprecated"
       }
     },
     "/oauth/mobile-redirect": {

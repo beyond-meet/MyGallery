@@ -122,6 +122,7 @@ Class | Method | HTTP request | Description
 *AuthenticationApi* | [**changePinCode**](doc//AuthenticationApi.md#changepincode) | **PUT** /auth/pin-code | Change pin code
 *AuthenticationApi* | [**finishOAuth**](doc//AuthenticationApi.md#finishoauth) | **POST** /oauth/callback | Finish OAuth
 *AuthenticationApi* | [**getAuthStatus**](doc//AuthenticationApi.md#getauthstatus) | **GET** /auth/status | Retrieve auth status
+*AuthenticationApi* | [**linkOAuthAccount**](doc//AuthenticationApi.md#linkoauthaccount) | **POST** /oauth/link | Link OAuth account
 *AuthenticationApi* | [**lockAuthSession**](doc//AuthenticationApi.md#lockauthsession) | **POST** /auth/session/lock | Lock auth session
 *AuthenticationApi* | [**login**](doc//AuthenticationApi.md#login) | **POST** /auth/login | Login
 *AuthenticationApi* | [**logout**](doc//AuthenticationApi.md#logout) | **POST** /auth/logout | Logout
@@ -141,6 +142,7 @@ Class | Method | HTTP request | Description
 *DatabaseBackupsAdminApi* | [**uploadDatabaseBackup**](doc//DatabaseBackupsAdminApi.md#uploaddatabasebackup) | **POST** /admin/database-backups/upload | Upload database backup
 *DeprecatedApi* | [**createPartnerDeprecated**](doc//DeprecatedApi.md#createpartnerdeprecated) | **POST** /partners/{id} | Create a partner
 *DeprecatedApi* | [**getQueuesLegacy**](doc//DeprecatedApi.md#getqueueslegacy) | **GET** /jobs | Retrieve queue counts and status
+*DeprecatedApi* | [**linkOAuthAccount**](doc//DeprecatedApi.md#linkoauthaccount) | **POST** /oauth/link | Link OAuth account
 *DeprecatedApi* | [**runQueueCommandLegacy**](doc//DeprecatedApi.md#runqueuecommandlegacy) | **PUT** /jobs/{name} | Run jobs
 *DownloadApi* | [**downloadArchive**](doc//DownloadApi.md#downloadarchive) | **POST** /download/archive | Download asset archive
 *DownloadApi* | [**getDownloadInfo**](doc//DownloadApi.md#getdownloadinfo) | **POST** /download/info | Retrieve download information
