@@ -614,24 +614,28 @@ describe(AuthService.name, () => {
       expect(mocks.user.getByEmail).toHaveBeenCalledTimes(1);
     });
 
-    it('should link an existing user', async () => {
+    it('should reject when existing user found by email and create a link token', async () => {
       const user = UserFactory.create();
       const profile = OAuthProfileFactory.create();
 
       mocks.systemMetadata.get.mockResolvedValue(systemConfigStub.oauthEnabled);
       mocks.oauth.getProfile.mockResolvedValue(profile);
       mocks.user.getByEmail.mockResolvedValue(user);
-      mocks.user.update.mockResolvedValue(user);
-      mocks.session.create.mockResolvedValue(SessionFactory.create());
+      mocks.oauthLinkToken.deleteByEmail.mockResolvedValue();
+      mocks.oauthLinkToken.create.mockResolvedValue({} as any);
 
-      await sut.callback(
-        { url: 'http://immich/auth/login?code=abc123', state: 'xyz789', codeVerifier: 'foobar' },
-        {},
-        loginDetails,
-      );
+      await expect(
+        sut.callback(
+          { url: 'http://immich/auth/login?code=abc123', state: 'xyz789', codeVerifier: 'foobar' },
+          {},
+          loginDetails,
+        ),
+      ).rejects.toThrow('oauth_account_link_required');
 
       expect(mocks.user.getByEmail).toHaveBeenCalledTimes(1);
-      expect(mocks.user.update).toHaveBeenCalledWith(user.id, { oauthId: profile.sub });
+      expect(mocks.user.update).not.toHaveBeenCalled();
+      expect(mocks.oauthLinkToken.deleteByEmail).toHaveBeenCalledTimes(1);
+      expect(mocks.oauthLinkToken.create).toHaveBeenCalledTimes(1);
     });
 
     it('should normalize the email from the OAuth profile before linking', async () => {
@@ -661,6 +665,8 @@ describe(AuthService.name, () => {
       mocks.oauth.getProfile.mockResolvedValue(OAuthProfileFactory.create());
       mocks.user.getByEmail.mockResolvedValueOnce(user);
       mocks.user.getAdmin.mockResolvedValue(UserFactory.create({ isAdmin: true }));
+      mocks.oauthLinkToken.deleteByEmail.mockResolvedValue();
+      mocks.oauthLinkToken.create.mockResolvedValue({} as any);
 
       await expect(
         sut.callback(
@@ -668,7 +674,7 @@ describe(AuthService.name, () => {
           {},
           loginDetails,
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('oauth_account_link_required');
 
       expect(mocks.user.update).not.toHaveBeenCalled();
       expect(mocks.user.create).not.toHaveBeenCalled();
@@ -984,6 +990,57 @@ describe(AuthService.name, () => {
       );
 
       expect(mocks.user.update).toHaveBeenCalledWith(auth.user.id, { oauthId: profile.sub });
+    });
+
+    it('should link an account with a linkToken', async () => {
+      const user = UserFactory.create();
+      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
+
+      mocks.oauthLinkToken.consumeToken.mockResolvedValue({
+        id: 'token-id',
+        oauthSub: 'oauth-sub-123',
+        userEmail: user.email,
+        token: Buffer.from('hashed'),
+        expiresAt: new Date(Date.now() + 600_000),
+        createdAt: new Date(),
+      });
+      mocks.user.update.mockResolvedValue(user);
+
+      await sut.link(auth, { linkToken: 'plain-token' }, {});
+
+      expect(mocks.oauthLinkToken.consumeToken).toHaveBeenCalledTimes(1);
+      expect(mocks.user.update).toHaveBeenCalledWith(auth.user.id, { oauthId: 'oauth-sub-123' });
+    });
+
+    it('should reject an invalid linkToken', async () => {
+      const user = UserFactory.create();
+      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
+
+      mocks.oauthLinkToken.consumeToken.mockResolvedValue(null as any);
+
+      await expect(sut.link(auth, { linkToken: 'bad-token' }, {})).rejects.toThrow('Invalid or expired link token');
+
+      expect(mocks.user.update).not.toHaveBeenCalled();
+    });
+
+    it('should reject a linkToken for a different user', async () => {
+      const user = UserFactory.create();
+      const auth = AuthFactory.from(user).apiKey({ permissions: [] }).build();
+
+      mocks.oauthLinkToken.consumeToken.mockResolvedValue({
+        id: 'token-id',
+        oauthSub: 'oauth-sub-123',
+        userEmail: 'different@example.com',
+        token: Buffer.from('hashed'),
+        expiresAt: new Date(Date.now() + 600_000),
+        createdAt: new Date(),
+      });
+
+      await expect(sut.link(auth, { linkToken: 'plain-token' }, {})).rejects.toThrow(
+        'Link token does not match the authenticated user',
+      );
+
+      expect(mocks.user.update).not.toHaveBeenCalled();
     });
 
     it('should not link an already linked oauth.sub', async () => {

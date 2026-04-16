@@ -7416,7 +7416,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OAuthCallbackDto"
+                "$ref": "#/components/schemas/OAuthLinkDto"
               }
             }
           },
@@ -19107,6 +19107,27 @@
         "required": [
           "redirectUri"
         ],
+        "type": "object"
+      },
+      "OAuthLinkDto": {
+        "properties": {
+          "codeVerifier": {
+            "description": "OAuth code verifier (PKCE)",
+            "type": "string"
+          },
+          "linkToken": {
+            "description": "OAuth link token from prior callback",
+            "type": "string"
+          },
+          "state": {
+            "description": "OAuth state parameter",
+            "type": "string"
+          },
+          "url": {
+            "description": "OAuth callback URL",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "OAuthTokenEndpointAuthMethod": {
